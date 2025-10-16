@@ -43,7 +43,7 @@ st.markdown("""
     /* Title - Medium size */
     .game-title {
         font-family: 'Clear Sans', 'Helvetica Neue', Arial, sans-serif;
-        font-size: 56px;
+        font-size: 42px;
         font-weight: bold;
         color: #776e65;
         text-align: center;
@@ -52,25 +52,21 @@ st.markdown("""
     }
     
     /* Score containers */
-    .score-container {
-        background: #bbada0;
-        border-radius: 6px;
-        padding: 10px 15px;
-        color: white;
-        font-family: 'Clear Sans', Arial, sans-serif;
-        text-align: center;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+   .score-container {
+        padding: 8px 12px;  /* Was 10px 15px */
     }
+
+
     
     .score-label {
-        font-size: 15px;
+        font-size: 11px;
         text-transform: uppercase;
         font-weight: bold;
         opacity: 0.8;
     }
     
     .score-value {
-        font-size: 30px;
+        font-size: 19px;
         font-weight: bold;
         margin-top: 3px;
     }
@@ -79,19 +75,19 @@ st.markdown("""
     .stButton > button {
         background-color: #8f7a66;
         color: white;
-        font-size: 30px
+        font-size: 21px;
         font-weight: bold;
         border: none;
         border-radius: 6px;
         padding: 8px;
         width: 100%;
-        height: 50px;
+        height: 40px;
         transition: all 0.2s;
         box-shadow: 0 2px 4px rgba(0,0,0,0.2);
     }
     
     .stButton > button:hover {
-        background-color: #9f3a76;
+        background-color: #9f8a76;
         transform: translateY(-2px);
         box-shadow: 0 4px 8px rgba(0,0,0,0.3);
     }
@@ -100,8 +96,8 @@ st.markdown("""
     .game-container {
         background: #bbada0;
         border-radius: 8px;
-        padding: 10px;
-        margin: 10px auto;
+        padding: 8px;
+        margin: 8px auto;
         max-width: 420px;
         box-shadow: 0 4px 8px rgba(0,0,0,0.2);
     }
@@ -110,7 +106,7 @@ st.markdown("""
     .instructions {
         text-align: center;
         color: #776e65;
-        font-size: 13px;
+        font-size: 11px;
         margin: 10px 0;
         font-family: 'Clear Sans', Arial, sans-serif;
     }
@@ -289,7 +285,7 @@ for row in st.session_state.board:
                 <div style='
                     background: {bg_color};
                     color: {text_color};
-                    height: 80px;
+                    height: 70px;
                     display: flex;
                     align-items: center;
                     justify-content: center;
