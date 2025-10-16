@@ -1,179 +1,229 @@
 import streamlit as st
-import random
+import streamlit.components.v1 as components
 import copy
+import gamelogic  # Import our game logic module
 
-# ============================================
-# FUNCTIONAL GAME LOGIC (Pure Functions)
-# ============================================
+# Page config
+st.set_page_config(
+    page_title="2048 Game",
+    page_icon="🎮",
+    layout="centered",
+    initial_sidebar_state="collapsed"
+)
 
-def initialize_board(size=4):
-    """Create empty board and add 2 random tiles"""
-    board = [[0] * size for _ in range(size)]
-    board = add_random_tile(board)
-    board = add_random_tile(board)
-    return board
-
-def add_random_tile(board):
-    """Add a random 2 or 4 to an empty cell"""
-    empty_cells = [(i, j) for i in range(len(board)) 
-                   for j in range(len(board[0])) if board[i][j] == 0]
-    if empty_cells:
-        i, j = random.choice(empty_cells)
-        board[i][j] = 2 if random.random() < 0.9 else 4
-    return board
-
-def slide_row(row):
-    """Slide and merge a single row to the left"""
-    # Remove zeros
-    non_zero = [num for num in row if num != 0]
-    
-    # Merge adjacent equal numbers
-    merged = []
-    score = 0
-    i = 0
-    while i < len(non_zero):
-        if i < len(non_zero) - 1 and non_zero[i] == non_zero[i + 1]:
-            merged.append(non_zero[i] * 2)
-            score += non_zero[i] * 2
-            i += 2
-        else:
-            merged.append(non_zero[i])
-            i += 1
-    
-    # Pad with zeros
-    merged += [0] * (len(row) - len(merged))
-    return merged, score
-
-def move_left(board):
-    """Move all tiles left"""
-    new_board = []
-    total_score = 0
-    for row in board:
-        new_row, score = slide_row(row)
-        new_board.append(new_row)
-        total_score += score
-    return new_board, total_score
-
-def move_right(board):
-    """Move all tiles right"""
-    new_board = []
-    total_score = 0
-    for row in board:
-        reversed_row = row[::-1]
-        new_row, score = slide_row(reversed_row)
-        new_board.append(new_row[::-1])
-        total_score += score
-    return new_board, total_score
-
-def transpose(board):
-    """Transpose the board"""
-    return [list(row) for row in zip(*board)]
-
-def move_up(board):
-    """Move all tiles up"""
-    transposed = transpose(board)
-    moved, score = move_left(transposed)
-    return transpose(moved), score
-
-def move_down(board):
-    """Move all tiles down"""
-    transposed = transpose(board)
-    moved, score = move_right(transposed)
-    return transpose(moved), score
-
-def board_changed(old_board, new_board):
-    """Check if board changed after move"""
-    return old_board != new_board
-
-def can_move(board):
-    """Check if any move is possible"""
-    size = len(board)
-    
-    # Check for empty cells
-    for row in board:
-        if 0 in row:
-            return True
-    
-    # Check for adjacent equal numbers horizontally
-    for i in range(size):
-        for j in range(size - 1):
-            if board[i][j] == board[i][j + 1]:
-                return True
-    
-    # Check for adjacent equal numbers vertically
-    for i in range(size - 1):
-        for j in range(size):
-            if board[i][j] == board[i + 1][j]:
-                return True
-    
-    return False
-
-def has_won(board):
-    """Check if 2048 tile exists"""
-    for row in board:
-        if 2048 in row:
-            return True
-    return False
-
-# ============================================
-# STREAMLIT UI SETUP
-# ============================================
-
-st.set_page_config(page_title="2048 Game", page_icon="🎮", layout="centered")
-
-# Custom CSS for better styling
+# Professional CSS styling
 st.markdown("""
 <style>
-    .stButton > button {
-        width: 100%;
-        height: 60px;
-        font-size: 24px;
-        font-weight: bold;
-        border-radius: 8px;
+    /* Hide Streamlit branding */
+    #MainMenu {visibility: hidden;}
+    footer {visibility: hidden;}
+    header {visibility: hidden;}
+    
+    /* Background */
+    .stApp {
+        background: linear-gradient(135deg, #faf8ef 0%, #f0e4d7 100%);
     }
-    div[data-testid="stMetricValue"] {
-        font-size: 32px;
+    
+    /* Title styling */
+    .game-title {
+        font-family: 'Clear Sans', 'Helvetica Neue', Arial, sans-serif;
+        font-size: 80px;
+        font-weight: bold;
+        color: #776e65;
+        text-align: center;
+        margin: 20px 0;
+        text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
+    }
+    
+    /* Score container */
+    .score-container {
+        background: #bbada0;
+        border-radius: 10px;
+        padding: 15px 25px;
+        color: white;
+        font-family: 'Clear Sans', Arial, sans-serif;
+        text-align: center;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    }
+    
+    .score-label {
+        font-size: 13px;
+        text-transform: uppercase;
+        font-weight: bold;
+        opacity: 0.8;
+    }
+    
+    .score-value {
+        font-size: 28px;
+        font-weight: bold;
+        margin-top: 5px;
+    }
+    
+    /* Button styling */
+    .stButton > button {
+        background-color: #8f7a66;
+        color: white;
+        font-size: 18px;
+        font-weight: bold;
+        border: none;
+        border-radius: 8px;
+        padding: 15px;
+        width: 100%;
+        transition: all 0.2s;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    }
+    
+    .stButton > button:hover {
+        background-color: #9f8a76;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+    }
+    
+    .stButton > button:active {
+        transform: translateY(0);
+    }
+    
+    /* Game container */
+    .game-container {
+        background: #bbada0;
+        border-radius: 10px;
+        padding: 15px;
+        margin: 20px auto;
+        max-width: 500px;
+        box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+    }
+    
+    /* Instructions */
+    .instructions {
+        text-align: center;
+        color: #776e65;
+        font-size: 16px;
+        margin: 20px 0;
+        font-family: 'Clear Sans', Arial, sans-serif;
+    }
+    
+    .key-hint {
+        display: inline-block;
+        background: #8f7a66;
+        color: white;
+        padding: 5px 10px;
+        border-radius: 5px;
+        margin: 0 5px;
+        font-weight: bold;
+    }
+    
+    /* Info messages */
+    .stAlert {
+        border-radius: 8px;
+        font-family: 'Clear Sans', Arial, sans-serif;
     }
 </style>
 """, unsafe_allow_html=True)
 
-# ============================================
-# SESSION STATE INITIALIZATION
-# ============================================
+# Keyboard event handler with scroll prevention
+components.html("""
+<script>
+// Focus on the document to capture keyboard events
+window.focus();
 
+// Prevent arrow key scrolling
+document.addEventListener('keydown', function(e) {
+    // Arrow keys
+    if(['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'w', 'a', 's', 'd'].includes(e.key)) {
+        e.preventDefault();  // Prevent page scroll
+        
+        const streamlitDoc = window.parent.document;
+        const buttons = streamlitDoc.querySelectorAll('button');
+        
+        buttons.forEach(button => {
+            const text = button.innerText || button.textContent;
+            
+            // Arrow keys
+            if ((e.key === 'ArrowUp' || e.key === 'w' || e.key === 'W') && text.includes('⬆')) {
+                button.click();
+            }
+            if ((e.key === 'ArrowDown' || e.key === 's' || e.key === 'S') && text.includes('⬇')) {
+                button.click();
+            }
+            if ((e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') && text.includes('⬅')) {
+                button.click();
+            }
+            if ((e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') && text.includes('➡')) {
+                button.click();
+            }
+        });
+    }
+}, true);  // Use capture phase
+
+// Also prevent space bar from scrolling
+document.addEventListener('keydown', function(e) {
+    if(e.key === ' ' || e.key === 'Spacebar') {
+        e.preventDefault();
+    }
+});
+</script>
+""", height=0)
+
+# Session state initialization
 if 'board' not in st.session_state:
-    st.session_state.board = initialize_board(4)
+    st.session_state.board = gamelogic.initialize_board(4)
     st.session_state.score = 0
+    st.session_state.high_score = 0
     st.session_state.moves = 0
     st.session_state.game_over = False
     st.session_state.won = False
 
-# ============================================
-# HEADER
-# ============================================
+st.markdown('<div class="game-title">2048</div>', unsafe_allow_html=True)
 
-st.title("🎮 2048 Game")
+col1, col2, col3, col4 = st.columns(4)
 
-col1, col2, col3 = st.columns([1, 1, 1])
 with col1:
-    st.metric("Score", st.session_state.score)
+    st.markdown(f"""
+    <div class="score-container">
+        <div class="score-label">Score</div>
+        <div class="score-value">{st.session_state.score}</div>
+    </div>
+    """, unsafe_allow_html=True)
+
 with col2:
-    st.metric("Moves", st.session_state.moves)
+    st.markdown(f"""
+    <div class="score-container">
+        <div class="score-label">Best</div>
+        <div class="score-value">{st.session_state.high_score}</div>
+    </div>
+    """, unsafe_allow_html=True)
+
 with col3:
-    if st.button("🔄 New Game"):
-        st.session_state.board = initialize_board(4)
+    st.markdown(f"""
+    <div class="score-container">
+        <div class="score-label">Moves</div>
+        <div class="score-value">{st.session_state.moves}</div>
+    </div>
+    """, unsafe_allow_html=True)
+
+with col4:
+    if st.button("🔄 New Game", use_container_width=True):
+        if st.session_state.score > st.session_state.high_score:
+            st.session_state.high_score = st.session_state.score
+        st.session_state.board = gamelogic.initialize_board(4)
         st.session_state.score = 0
         st.session_state.moves = 0
         st.session_state.game_over = False
         st.session_state.won = False
         st.rerun()
 
-st.markdown("---")
+# Instructions
+st.markdown("""
+<div class="instructions">
+    Use <span class="key-hint">↑</span> 
+    <span class="key-hint">↓</span> 
+    <span class="key-hint">←</span> 
+    <span class="key-hint">→</span> 
+    or <span class="key-hint">WASD</span> to move tiles
+</div>
+""", unsafe_allow_html=True)
 
-# ============================================
-# GAME BOARD DISPLAY
-# ============================================
-
+# Game board
 def get_tile_color(value):
     """Get color for tile based on value"""
     colors = {
@@ -188,98 +238,104 @@ def get_tile_color(value):
         256: "#edcc61",
         512: "#edc850",
         1024: "#edc53f",
-        2048: "#edc22e"
+        2048: "#edc22e",
+        4096: "#3c3a32",
+        8192: "#3c3a32"
     }
     return colors.get(value, "#3c3a32")
 
 def get_text_color(value):
     """Get text color based on tile value"""
-    return "#776e65" if value in [2, 4] else "#f9f6f2"
+    return "#776e65" if value <= 4 else "#f9f6f2"
 
-# Display board using columns
-st.markdown("### Game Board")
-for row in st.session_state.board:
+def get_font_size(value):
+    """Get font size based on tile value"""
+    if value < 100:
+        return "55px"
+    elif value < 1000:
+        return "45px"
+    elif value < 10000:
+        return "35px"
+    else:
+        return "30px"
+
+# Display board
+st.markdown('<div class="game-container">', unsafe_allow_html=True)
+
+for row_idx, row in enumerate(st.session_state.board):
     cols = st.columns(4)
-    for idx, value in enumerate(row):
-        with cols[idx]:
+    for col_idx, value in enumerate(row):
+        with cols[col_idx]:
             bg_color = get_tile_color(value)
             text_color = get_text_color(value)
+            font_size = get_font_size(value)
             display_value = str(value) if value != 0 else ""
             
             st.markdown(f"""
                 <div style='
-                    background-color: {bg_color};
+                    background: {bg_color};
                     color: {text_color};
-                    height: 100px;
+                    height: 106px;
                     display: flex;
                     align-items: center;
                     justify-content: center;
-                    font-size: 32px;
+                    font-size: {font_size};
                     font-weight: bold;
-                    border-radius: 8px;
-                    margin: 4px;
+                    font-family: "Clear Sans", Arial, sans-serif;
+                    border-radius: 6px;
+                    margin: 7px;
+                    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+                    transition: all 0.15s ease-in-out;
                 '>
                     {display_value}
                 </div>
             """, unsafe_allow_html=True)
 
-st.markdown("---")
+st.markdown('</div>', unsafe_allow_html=True)
 
-# ============================================
-# MOVE FUNCTION
-# ============================================
-
+# Move function
 def make_move(move_func, direction):
-    """Execute a move and update game state"""
+    """Execute move and update game state"""
     if st.session_state.game_over:
-        st.warning("Game Over! Click 'New Game' to start again.")
         return
     
     old_board = copy.deepcopy(st.session_state.board)
     new_board, points = move_func(st.session_state.board)
     
-    if board_changed(old_board, new_board):
-        # Valid move - board actually changed
-        st.session_state.board = add_random_tile(new_board)
+    if gamelogic.board_changed(old_board, new_board):
+        # Valid move
+        st.session_state.board = gamelogic.add_random_tile(new_board)
         st.session_state.score += points
         st.session_state.moves += 1
         
-        # Check win condition
-        if not st.session_state.won and has_won(st.session_state.board):
+        # Update high score
+        if st.session_state.score > st.session_state.high_score:
+            st.session_state.high_score = st.session_state.score
+        
+        # Check win/lose
+        game_state = gamelogic.get_game_state(st.session_state.board)
+        
+        if game_state == "WON" and not st.session_state.won:
             st.session_state.won = True
             st.balloons()
             st.success(f"🎉 **You Won!** Reached 2048! Score: {st.session_state.score}")
-        
-        # Check lose condition
-        elif not can_move(st.session_state.board):
+        elif game_state == "LOST":
             st.session_state.game_over = True
             st.error(f"😢 **Game Over!** No more moves. Final Score: {st.session_state.score}")
         
-        # Move feedback
-        elif points > 0:
-            st.info(f"✨ Great! **+{points}** points")
-        
         st.rerun()
-    else:
-        # Invalid move - board didn't change
-        st.warning(f"⚠️ Can't move **{direction}**! Try another direction.")
-
-# ============================================
-# CONTROLS
-# ============================================
-
-st.markdown("### 🎮 Controls")
-st.markdown("*Use arrow keys ↑↓←→ or click buttons*")
 
 # Control buttons
+st.markdown("<br>", unsafe_allow_html=True)
+
 col1, col2, col3 = st.columns([1, 1, 1])
 
 with col1:
     st.write("")
 
 with col2:
-    if st.button("⬆️ UP", key="up", use_container_width=True):
-        make_move(move_up, "UP")
+    if st.button("⬆️", key="up", use_container_width=True):
+        make_move(gamelogic.move_up, "UP")
 
 with col3:
     st.write("")
@@ -287,22 +343,19 @@ with col3:
 col1, col2, col3 = st.columns([1, 1, 1])
 
 with col1:
-    if st.button("⬅️ LEFT", key="left", use_container_width=True):
-        make_move(move_left, "LEFT")
+    if st.button("⬅️", key="left", use_container_width=True):
+        make_move(gamelogic.move_left, "LEFT")
 
 with col2:
-    if st.button("⬇️ DOWN", key="down", use_container_width=True):
-        make_move(move_down, "DOWN")
+    if st.button("⬇️", key="down", use_container_width=True):
+        make_move(gamelogic.move_down, "DOWN")
 
 with col3:
-    if st.button("➡️ RIGHT", key="right", use_container_width=True):
-        make_move(move_right, "RIGHT")
+    if st.button("➡️", key="right", use_container_width=True):
+        make_move(gamelogic.move_right, "RIGHT")
 
-# ============================================
-# GAME STATUS
-# ============================================
-
-st.markdown("---")
+# Game status
+st.markdown("<br>", unsafe_allow_html=True)
 
 if st.session_state.game_over:
     st.error("🛑 **Game Over!** No more moves possible.")
@@ -311,11 +364,11 @@ elif st.session_state.won:
 else:
     st.info("💡 **Tip:** Keep your highest tile in a corner!")
 
-
-st.markdown("---")
+# Footer
+st.markdown("<br>", unsafe_allow_html=True)
 st.markdown("""
-<div style='text-align: center; color: #776e65; font-size: 14px;'>
-    <p><strong>2048 Game</strong> - Built with Python & Streamlit</p>
-    <p>Functional Programming Implementation</p>
+<div style='text-align: center; color: #776e65; font-size: 14px; font-family: "Clear Sans", Arial, sans-serif;'>
+    <p><strong>2048 Game</strong> - Functional Programming Implementation</p>
+    <p>Built with Python & Streamlit | Deployed on AWS EC2</p>
 </div>
 """, unsafe_allow_html=True)
