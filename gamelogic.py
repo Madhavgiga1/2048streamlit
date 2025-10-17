@@ -92,18 +92,18 @@ def can_move(board):
     """to check if any move is possible"""
     size = len(board)
     
-    # Check for empty cells
+   
     for row in board:
         if 0 in row:
             return True
     
-    # Check for adjacent equal numbers horizontally
+    # checking for adjacent equal numbers horizontally
     for i in range(size):
         for j in range(size - 1):
             if board[i][j] == board[i][j + 1]:
                 return True
     
-    # Check for adjacent equal numbers vertically
+    # checking for adjacent equal numbers vertically
     for i in range(size - 1):
         for j in range(size):
             if board[i][j] == board[i + 1][j]:
